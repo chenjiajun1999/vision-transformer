@@ -14,7 +14,7 @@ class PatchEmbedding(nn.Module):
         self.img_size = (img_size, img_size)
         self.patch_size = (patch_size, patch_size)
         self.grid_size = (self.img_size[0] // self.patch_size[0], self.img_size[1] // self.patch_size[1])
-        self.num_patch = self.grid_size[0] * self.grid_size[1]
+        self.num_patches = self.grid_size[0] * self.grid_size[1]
 
         self.projection = nn.Sequential(
             # break-down the image in s1 x s2 patches and flat them
@@ -40,3 +40,34 @@ class PatchEmbedding(nn.Module):
         x += self.positions
         return x
 
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, embed_size=768, num_heads=8, dropout=0):
+        super().__init__()
+        self.embed_size = embed_size
+        self.num_heads = num_heads
+
+        self.qkv = nn.Linear(embed_size, embed_size * 3)
+        self.attn_drop = nn.Dropout(dropout)
+        self.projection = nn.Linear(embed_size, embed_size)
+
+    def forward(self, x):
+        # [batch_size, num_patches + 1, embed_size]
+        B, N, C = x.shape
+
+        # qkv(): -> [batch_size, num_patches + 1, 3 * embed_size]
+        qkv = rearrange(self.qkv(x), "b n (h d qkv) -> (qkv) b h n d", h=self.num_heads, qkv=3)
+        # [batch_size, num_heads, num_patches + 1, embed_dim_per_head]
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        scaling = self.embed_size ** (1 / 2)
+        # batch, num_heads, query_len, key_len
+        attn = torch.einsum('bhqd, bhkd -> bhqk', q, k) / scaling
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        # batch, num_heads, attn_len, value_len
+        x = torch.einsum('bhal, bhlv -> bhav ', attn, v)
+        x = rearrange(x, "b h n d -> b n (h d)")
+        x = self.projection(x)
+        return x
