@@ -1,3 +1,7 @@
 .idea/
 **/.clion.source.upload.marker
 __pycache__/
+*.jpg
+*.pth
+*.txt
+*.sh

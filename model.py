@@ -42,7 +42,7 @@ class PatchEmbedding(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, embed_size=768, num_heads=8, dropout=0):
+    def __init__(self, embed_size=768, num_heads=12, dropout=0):
         super().__init__()
         self.embed_size = embed_size
         self.num_heads = num_heads
