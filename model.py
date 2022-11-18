@@ -71,3 +71,67 @@ class MultiHeadAttention(nn.Module):
         x = rearrange(x, "b h n d -> b n (h d)")
         x = self.projection(x)
         return x
+
+
+class ResidualBlock(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, x, **kwargs):
+        res = x
+        x = self.fn(x, **kwargs)
+        x += res
+        return x
+
+
+class MLP(nn.Sequential):
+    def __init__(self, embed_size, expansion=4, dropout=0.):
+        super().__init__(
+            nn.Linear(embed_size, expansion * embed_size),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(expansion * embed_size, embed_size),
+        )
+
+
+class TransformerEncoderBlock(nn.Sequential):
+    def __init__(self,
+                 embed_size: int = 768,
+                 dropout: float = 0.,
+                 expansion: int = 4,
+                 **kwargs):
+        super().__init__(
+            ResidualBlock(nn.Sequential(
+                nn.LayerNorm(embed_size),
+                MultiHeadAttention(embed_size, **kwargs),
+                nn.Dropout(dropout)
+            )),
+            ResidualBlock(nn.Sequential(
+                nn.LayerNorm(embed_size),
+                MLP(
+                    embed_size, expansion=expansion, dropout=dropout),
+                nn.Dropout(dropout)
+            )))
+
+
+class TransformerEncoder(nn.Sequential):
+    def __init__(self, depth=12, **kwargs):
+        super().__init__(*[TransformerEncoderBlock(**kwargs) for _ in range(depth)])
+
+
+class ClassifierHead(nn.Sequential):
+    def __init__(self, embed_size=768, num_class=1000):
+        super().__init__(
+            Reduce('b n e -> b e', reduction='mean'),
+            nn.LayerNorm(embed_size),
+            nn.Linear(embed_size, num_class))
+
+
+class ViT(nn.Sequential):
+    def __init__(self, in_channels=3, patch_size=16, embed_size=768, img_size=224, depth=12, num_class=1000, **kwargs):
+        super().__init__(
+            PatchEmbedding(img_size=img_size, patch_size=patch_size, in_channels=in_channels, embed_size=embed_size),
+            TransformerEncoder(depth=depth, embed_size=embed_size, **kwargs),
+            ClassifierHead(embed_size=embed_size, num_class=num_class)
+        )
