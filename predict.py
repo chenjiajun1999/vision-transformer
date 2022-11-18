@@ -1,5 +1,4 @@
 import os
-import json
 import argparse
 
 import torch
@@ -50,7 +49,7 @@ def run(weight='', source='', dict='', device=''):
     model = ViT(num_class=21843).to(device)
     # load model weights
     assert os.path.exists(weight), "file: '{}' dose not exist.".format(weight)
-    # model.load_state_dict(torch.load(weight, map_location=device))
+    model.load_state_dict(torch.load(weight, map_location=device))
     model.eval()
     for img in imgs:
         with torch.no_grad():
