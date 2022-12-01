@@ -75,7 +75,6 @@ def evaluate(model, data_loader, device, epoch, use_wandb):
 
         data_loader.desc = "[valid epoch {}] loss: {:.3f}, acc: {:.3f}".format(epoch,
                                                                                accu_loss.item() / (step + 1),
-
                                                                                accu_num.item() / sample_num)
         if use_wandb:
             wandb.log({'val_loss (step)': accu_loss.item() / (step + 1),
@@ -172,11 +171,11 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('data', metavar='DIR', nargs='?', default='imagenet',
+    parser.add_argument('data', metavar='DIR', nargs='?', default='/data/cjj/imagenet',
                         help='path to dataset (default: imagenet)')
     parser.add_argument('--num-class', type=int, default=1000)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=112)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--lrf', type=float, default=0.01)
 

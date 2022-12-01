@@ -165,8 +165,8 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="/data/cjj/imagenet")
     parser.add_argument('--num_class', type=int, default=1000)
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch-size', type=int, default=120)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--lrf', type=float, default=0.01)
     # 是否启用SyncBatchNorm
     parser.add_argument('--syncBN', type=bool, default=True)

@@ -20,3 +20,13 @@ imagenet/val/
 │   ├── ......
 ├── ......
 ~~~
+
+单卡训练：
+~~~
+python train.py
+~~~
+
+多卡训练：
+~~~
+CUDA_VISIBLE_DEVICES=0,2 python -m torch.distributed.launch --nproc_per_node=2 --use_env train_multi_GPU.py
+~~~

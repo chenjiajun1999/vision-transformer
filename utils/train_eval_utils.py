@@ -51,7 +51,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, use_wandb):
         if is_main_process():
             data_loader.desc = "[epoch {}] loss: {:.3f}".format(epoch, mean_loss.item())
             if use_wandb:
-                wandb.log({'epoch': epoch, 'loss': mean_loss.item()})
+                wandb.log({'loss (each step)': mean_loss.item()})
 
         if not torch.isfinite(loss):
             print('WARNING: non-finite loss, ending training ', loss)

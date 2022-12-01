@@ -42,7 +42,7 @@ class PatchEmbedding(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, embed_size=768, num_heads=12, dropout=0):
+    def __init__(self, embed_size=768, num_heads=12, dropout=0.):
         super().__init__()
         self.embed_size = embed_size
         self.num_heads = num_heads
@@ -97,20 +97,20 @@ class MLP(nn.Sequential):
 
 class TransformerEncoderBlock(nn.Sequential):
     def __init__(self,
-                 embed_size: int = 768,
-                 dropout: float = 0.,
-                 expansion: int = 4,
+                 embed_size=768,
+                 dropout=0.1,
+                 expansion=4,
                  **kwargs):
         super().__init__(
             ResidualBlock(nn.Sequential(
                 nn.LayerNorm(embed_size),
-                MultiHeadAttention(embed_size, **kwargs),
+                MultiHeadAttention(embed_size=embed_size, dropout=dropout, **kwargs),
                 nn.Dropout(dropout)
             )),
             ResidualBlock(nn.Sequential(
                 nn.LayerNorm(embed_size),
                 MLP(
-                    embed_size, expansion=expansion, dropout=dropout),
+                    embed_size=embed_size, expansion=expansion, dropout=dropout),
                 nn.Dropout(dropout)
             )))
 
@@ -129,7 +129,8 @@ class ClassifierHead(nn.Sequential):
 
 
 class ViT(nn.Sequential):
-    def __init__(self, in_channels=3, patch_size=16, embed_size=768, img_size=224, depth=12, num_class=1000, **kwargs):
+    def __init__(self, in_channels=3, patch_size=16, embed_size=768,
+                 img_size=224, depth=12, num_class=1000, **kwargs):
         super().__init__(
             PatchEmbedding(img_size=img_size, patch_size=patch_size, in_channels=in_channels, embed_size=embed_size),
             TransformerEncoder(depth=depth, embed_size=embed_size, **kwargs),
