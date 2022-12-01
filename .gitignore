@@ -5,3 +5,6 @@ __pycache__/
 *.pth
 *.txt
 *.sh
+weights/
+dataset/
+wandb/

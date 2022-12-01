@@ -135,3 +135,7 @@ class ViT(nn.Sequential):
             TransformerEncoder(depth=depth, embed_size=embed_size, **kwargs),
             ClassifierHead(embed_size=embed_size, num_class=num_class)
         )
+
+
+def create_model(num_class=1000):
+    return ViT(num_class=num_class)
