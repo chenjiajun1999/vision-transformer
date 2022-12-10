@@ -46,7 +46,7 @@ def run(weight='', source='', dict='', device=''):
         class_indict = [l.strip() for l in open(dict).readlines()]
 
     # create model
-    model = ViT(num_class=21843).to(device)
+    model = ViT(num_class=1000).to(device)
     # load model weights
     assert os.path.exists(weight), "file: '{}' dose not exist.".format(weight)
     model.load_state_dict(torch.load(weight, map_location=device))
@@ -64,7 +64,7 @@ def run(weight='', source='', dict='', device=''):
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=str, default="")
-    parser.add_argument('--weight', type=str, default='./vit_base_patch16_224_in21k.pth',
+    parser.add_argument('--weight', type=str, default='./checkpoint.pth',
                         help='initial weights path')
     parser.add_argument('--dict', type=str, default='./synset.txt')
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')

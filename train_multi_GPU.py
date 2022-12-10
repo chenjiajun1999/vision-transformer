@@ -14,7 +14,6 @@ from utils.train_eval_utils import train_one_epoch, evaluate
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
 
-
 def main(args):
     if torch.cuda.is_available() is False:
         raise EnvironmentError("not find GPU device for training.")
@@ -121,7 +120,20 @@ def main(args):
 
     # optimizer
     pg = [p for p in model.parameters() if p.requires_grad]
-    optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=5E-5)
+
+    optimizer_set = {'SGD', 'AdamW', 'Adan'}
+    if args.optimizer not in optimizer_set:
+        raise EnvironmentError("optimizer is not supported")
+
+    optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1e-4)
+
+    if args.optimizer is 'AdamW':
+        optimizer = optim.AdamW(pg, lr=args.lr, weight_decay=3e-4)
+    elif args.optimizer is 'Adan':
+        from adan import Adan
+        optimizer = Adan(pg, lr=1.5e-2, weight_decay=args.weight_decay, betas=args.opt_betas, eps=args.opt_eps,
+                         max_grad_norm=args.max_grad_norm, no_prox=args.no_prox)
+
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
@@ -137,7 +149,8 @@ def main(args):
                                     epoch=epoch,
                                     use_wandb=use_wandb)
 
-        scheduler.step()
+        if args.optimizer is 'SGD':
+            scheduler.step()
 
         sum_num = evaluate(model=model,
                            data_loader=val_loader,
@@ -165,7 +178,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="/data/cjj/imagenet")
     parser.add_argument('--num_class', type=int, default=1000)
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--batch-size', type=int, default=96)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--lrf', type=float, default=0.01)
     # 是否启用SyncBatchNorm
@@ -181,6 +194,21 @@ if __name__ == '__main__':
                         help='number of distributed processes')
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
     parser.add_argument('--use-wandb', type=bool, default=True)
+
+    parser.add_argument('--optimizer', type=str, default='Adan', help='SGD or AdamW')
+    parser.add_argument('--max-grad-norm', type=float, default=5.0,
+                        help='if the l2 norm is large than this hyper-parameter, then we clip the gradient  (default: 0.0, no gradient clip)')
+    parser.add_argument('--weight-decay', type=float, default=0.02,
+                        help='weight decay, similar one used in AdamW (default: 0.02)')
+    parser.add_argument('--opt-eps', default=1e-8, type=float, metavar='EPSILON',
+                        help='optimizer epsilon to avoid the bad case where second-order moment is zero (default: None, use opt default 1e-8 in adan)')
+    parser.add_argument('--opt-betas', default=(0.98, 0.92, 0.99), type=float, nargs='+', metavar='BETA',
+                        help='optimizer betas in Adan (default: None, use opt default [0.98, 0.92, 0.99] in Adan)')
+    parser.add_argument('--no-prox', action='store_true', default=False,
+                        help='whether perform weight decay like AdamW (default=False)')
+    parser.add_argument('--bias-decay', action='store_true', default=False,
+                        help='Perform the weight decay on bias term (default=False)')
+
     opt = parser.parse_args()
 
     main(opt)
