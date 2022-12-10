@@ -3,13 +3,15 @@ import torch.nn as nn
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
 
+from layers.drop_path import DropPath
+
 
 class PatchEmbedding(nn.Module):
     """
     2D Image to Patch Embedding
     """
 
-    def __init__(self, img_size=224, patch_size=16, in_channels=3, embed_size=768):
+    def __init__(self, img_size=224, patch_size=16, in_channels=3, embed_size=768, dropout=0.):
         super().__init__()
         self.img_size = (img_size, img_size)
         self.patch_size = (patch_size, patch_size)
@@ -27,6 +29,7 @@ class PatchEmbedding(nn.Module):
 
         # 位置编码信息，一共有 (img_size // patch_size)**2 + 1(cls token) 个位置向量
         self.positions = nn.Parameter(torch.randn((img_size // patch_size) ** 2 + 1, embed_size))
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -38,51 +41,18 @@ class PatchEmbedding(nn.Module):
         cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=B)
         x = torch.cat([cls_tokens, x], dim=1)
         x += self.positions
+        x = self.dropout(x)
         return x
-
-
-
-def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
-    """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
-    This is the same as the DropConnect impl I created for EfficientNet, etc networks, however,
-    the original name is misleading as 'Drop Connect' is a different form of dropout in a separate paper...
-    See discussion: https://github.com/tensorflow/tpu/issues/494#issuecomment-532968956 ... I've opted for
-    changing the layer and argument names to 'drop path' rather than mix DropConnect as a layer name and use
-    'survival rate' as the argument.
-    """
-    if drop_prob == 0. or not training:
-        return x
-    keep_prob = 1 - drop_prob
-    shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
-    if keep_prob > 0.0 and scale_by_keep:
-        random_tensor.div_(keep_prob)
-    return x * random_tensor
-
-
-class DropPath(nn.Module):
-    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
-    """
-    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
-        super(DropPath, self).__init__()
-        self.drop_prob = drop_prob
-        self.scale_by_keep = scale_by_keep
-
-    def forward(self, x):
-        return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
-
-    def extra_repr(self):
-        return f'drop_prob={round(self.drop_prob,3):0.3f}'
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, embed_size=768, num_heads=12, drop=0.):
+    def __init__(self, embed_size=768, num_heads=12, dropout=0.):
         super().__init__()
         self.embed_size = embed_size
         self.num_heads = num_heads
 
         self.qkv = nn.Linear(embed_size, embed_size * 3)
-        self.attn_drop = DropPath(drop)
+        self.attn_drop = nn.Dropout(dropout)
         self.projection = nn.Linear(embed_size, embed_size)
 
     def forward(self, x):
@@ -120,38 +90,41 @@ class ResidualBlock(nn.Module):
 
 
 class MLP(nn.Sequential):
-    def __init__(self, embed_size, expansion=4, drop=0.):
+    def __init__(self, embed_size, expansion=4, dropout=0.):
         super().__init__(
             nn.Linear(embed_size, expansion * embed_size),
             nn.GELU(),
-            DropPath(drop),
+            nn.Dropout(dropout),
             nn.Linear(expansion * embed_size, embed_size),
+            nn.Dropout(dropout),
         )
 
 
 class TransformerEncoderBlock(nn.Sequential):
     def __init__(self,
                  embed_size=768,
-                 drop=0.1,
+                 dropout=0.,
+                 drop_path=0.1,
                  expansion=4,
                  **kwargs):
         super().__init__(
             ResidualBlock(nn.Sequential(
                 nn.LayerNorm(embed_size),
-                MultiHeadAttention(embed_size=embed_size, drop=drop, **kwargs),
-                DropPath(drop)
+                MultiHeadAttention(embed_size=embed_size, dropout=dropout, **kwargs),
+                DropPath(drop_path)
             )),
             ResidualBlock(nn.Sequential(
                 nn.LayerNorm(embed_size),
-                MLP(
-                    embed_size=embed_size, expansion=expansion, drop=drop),
-                DropPath(drop)
+                MLP(embed_size=embed_size, expansion=expansion, dropout=dropout),
+                DropPath(drop_path)
             )))
 
 
 class TransformerEncoder(nn.Sequential):
-    def __init__(self, depth=12, **kwargs):
-        super().__init__(*[TransformerEncoderBlock(**kwargs) for _ in range(depth)])
+    def __init__(self, depth=12, dropout=0., drop_path=0., **kwargs):
+        super().__init__(*[TransformerEncoderBlock(dropout=dropout,
+                                                   drop_path=drop_path,
+                                                   **kwargs) for _ in range(depth)])
 
 
 class ClassifierHead(nn.Sequential):
@@ -164,10 +137,14 @@ class ClassifierHead(nn.Sequential):
 
 class ViT(nn.Sequential):
     def __init__(self, in_channels=3, patch_size=16, embed_size=768,
-                 img_size=224, depth=12, num_class=1000, **kwargs):
+                 img_size=224, depth=12, num_class=1000,
+                 dropout=0., drop_path=0.1, **kwargs):
         super().__init__(
-            PatchEmbedding(img_size=img_size, patch_size=patch_size, in_channels=in_channels, embed_size=embed_size),
-            TransformerEncoder(depth=depth, embed_size=embed_size, **kwargs),
+            PatchEmbedding(img_size=img_size, patch_size=patch_size,
+                           in_channels=in_channels, embed_size=embed_size,
+                           dropout=dropout),
+            TransformerEncoder(depth=depth, embed_size=embed_size,
+                               dropout=dropout, drop_path=drop_path, **kwargs),
             ClassifierHead(embed_size=embed_size, num_class=num_class)
         )
 

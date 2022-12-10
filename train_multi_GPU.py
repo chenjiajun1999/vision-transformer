@@ -128,7 +128,7 @@ def main(args):
     optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1e-4)
 
     if args.optimizer is 'AdamW':
-        optimizer = optim.AdamW(pg, lr=args.lr, weight_decay=3e-4)
+        optimizer = optim.AdamW(pg, lr=args.lr, weight_decay=1e-4)
     elif args.optimizer is 'Adan':
         from adan import Adan
         optimizer = Adan(pg, lr=1.5e-2, weight_decay=args.weight_decay, betas=args.opt_betas, eps=args.opt_eps,
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
     parser.add_argument('--use-wandb', type=bool, default=True)
 
-    parser.add_argument('--optimizer', type=str, default='Adan', help='SGD or AdamW')
+    parser.add_argument('--optimizer', type=str, default='AdamW', help='SGD or AdamW')
     parser.add_argument('--max-grad-norm', type=float, default=5.0,
                         help='if the l2 norm is large than this hyper-parameter, then we clip the gradient  (default: 0.0, no gradient clip)')
     parser.add_argument('--weight-decay', type=float, default=0.02,
