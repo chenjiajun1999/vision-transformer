@@ -3,7 +3,7 @@ import wandb
 from tqdm import tqdm
 import torch
 import torch.nn.functional as F
-
+from torchtoolbox.tools import mixup_data, mixup_criterion
 from utils.distributed_utils import reduce_value, is_main_process
 
 
@@ -29,7 +29,7 @@ def self_cross_entropy(input, target, ignore_index=None):
     return loss
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, use_wandb):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, use_wandb, use_mixup):
     model.train()
     loss_function = torch.nn.CrossEntropyLoss()
     mean_loss = torch.zeros(1).to(device)
@@ -39,11 +39,19 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, use_wandb):
     if is_main_process():
         data_loader = tqdm(data_loader, file=sys.stdout)
 
-    for step, data in enumerate(data_loader):
-        images, labels = data
-        pred = model(images.to(device))
+    for step, (images, labels) in enumerate(data_loader):
+        images = images.to(device)
+        labels = labels.to(device)
 
-        loss = loss_function(pred, labels.to(device))
+        # Scheduler https://arxiv.org/pdf/2205.01580.pdf
+        if use_mixup is True:
+            images, labels_a, labels_b, lam = mixup_data(images, labels, 0.2)
+            pred = model(images)
+            loss = mixup_criterion(loss_function, pred, labels_a, labels_b, lam)
+        else:
+            pred = model(images)
+            loss = loss_function(pred, labels)
+
         loss.backward()
         loss = reduce_value(loss, average=True)
         mean_loss = (mean_loss * step + loss.detach()) / (step + 1)  # update mean losses

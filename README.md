@@ -21,6 +21,11 @@ imagenet/val/
 ├── ......
 ~~~
 
+依赖安装：
+~~~
+pip install git+https://github.com/ildoonet/pytorch-randaugment
+~~~
+
 单卡训练：
 ~~~
 python train.py

@@ -29,7 +29,7 @@ class PatchEmbedding(nn.Module):
 
         # 位置编码信息，一共有 (img_size // patch_size)**2 + 1(cls token) 个位置向量
         self.positions = nn.Parameter(torch.randn((img_size // patch_size) ** 2 + 1, embed_size))
-        self.dropout = nn.Dropout(dropout)
+        self.embed_drop = nn.Dropout(dropout)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -41,7 +41,7 @@ class PatchEmbedding(nn.Module):
         cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=B)
         x = torch.cat([cls_tokens, x], dim=1)
         x += self.positions
-        x = self.dropout(x)
+        x = self.embed_drop(x)
         return x
 
 
@@ -138,7 +138,7 @@ class ClassifierHead(nn.Sequential):
 class ViT(nn.Sequential):
     def __init__(self, in_channels=3, patch_size=16, embed_size=768,
                  img_size=224, depth=12, num_class=1000,
-                 dropout=0., drop_path=0.1, **kwargs):
+                 dropout=0.1, drop_path=0.2, **kwargs):
         super().__init__(
             PatchEmbedding(img_size=img_size, patch_size=patch_size,
                            in_channels=in_channels, embed_size=embed_size,
