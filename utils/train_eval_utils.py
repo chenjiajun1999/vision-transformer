@@ -1,4 +1,5 @@
 import sys
+import random
 import wandb
 from tqdm import tqdm
 import torch
@@ -44,8 +45,8 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, use_wandb, use
         labels = labels.to(device)
 
         # Scheduler https://arxiv.org/pdf/2205.01580.pdf
-        if use_mixup is True:
-            images, labels_a, labels_b, lam = mixup_data(images, labels, 0.2)
+        if use_mixup is True and random.randint(1, 10) > 8:
+            images, labels_a, labels_b, lam = mixup_data(images, labels)
             pred = model(images)
             loss = mixup_criterion(loss_function, pred, labels_a, labels_b, lam)
         else:
