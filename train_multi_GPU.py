@@ -32,7 +32,7 @@ def main(args):
     checkpoint_path = ""
     use_wandb = args.use_wandb
     use_mixup = args.use_mixup
-    use_randaug = args.randaug
+    use_randaug = args.use_randaug
 
     if rank == 0:  # 在第一个进程中打印信息，并实例化tensorboard
         print(args)
